@@ -1,0 +1,31 @@
+{
+    "name": "MAX31865",
+    "config": {
+        "cs-pin": {
+            "help": "the chip select pin of the SPI communication interface",
+            "value": "PA_10"
+        },
+        "clk-pin": {
+            "help": "the clock pin of the SPI communication interface",
+            "value": "PB_3"
+        },
+        "mosi-pin": {
+            "help": "the master-out-slave-in pin of the SPI communication interface",
+            "value": "PB_5"
+        },
+        "miso-pin": {
+            "help": "the master-in-slave-out pin of the SPI communication interface",
+            "value": "PB_4"
+        },
+        "frequency":
+        {
+            "help": "the desired I2C frequency",
+            "value": 1000000
+        },
+        "matching_resistor":
+        {
+            "help": "the size of the matiching resistor in ohms",
+            "value": 4300
+        }
+    }
+}
