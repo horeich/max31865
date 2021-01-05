@@ -3,29 +3,39 @@
     "config": {
         "cs-pin": {
             "help": "the chip select pin of the SPI communication interface",
-            "value": "PA_10"
+            "value": "PC_4"
         },
         "clk-pin": {
             "help": "the clock pin of the SPI communication interface",
-            "value": "PB_3"
+            "value": "PB_13"
         },
         "mosi-pin": {
             "help": "the master-out-slave-in pin of the SPI communication interface",
-            "value": "PB_5"
+            "value": "PB_15"
         },
         "miso-pin": {
             "help": "the master-in-slave-out pin of the SPI communication interface",
-            "value": "PB_4"
+            "value": "PB_14"
         },
         "frequency":
         {
             "help": "the desired I2C frequency",
             "value": 1000000
         },
-        "matching_resistor":
+        "rtd-mode":
         {
-            "help": "the size of the matiching resistor in ohms",
+            "help": "the mode of the device according to the number of wires coming from the RTD",
+            "value": "RTD_MODE_2_4_WIRE"
+        },
+        "matching_resistance":
+        {
+            "help": "the size of the matching resistance in ohms",
             "value": 4300
+        },
+        "nominal_resistance":
+        {
+            "help": "the size of the nominal resistance of the temperature element in ohms",
+            "value": 1000
         }
     }
 }

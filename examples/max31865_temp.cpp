@@ -7,7 +7,7 @@
 #include "max31865_temp.hpp"
 
 
-void max31865_temp::Run()
+void MAX31865_Temp::Run()
 {
     printf("### example ###\n");
 

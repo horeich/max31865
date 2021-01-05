@@ -6,11 +6,11 @@
 
 #include "../src/max31865.hpp"
 
-class max31865_temp
+class MAX31865_Temp
 {
     public:
-    max31865_temp() = default;
-    ~max31865_temp() = default;
+    MAX31865_Temp() = default;
+    ~MAX31865_Temp() = default;
 
     static void Run();
 

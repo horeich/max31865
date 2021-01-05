@@ -1,3 +1,9 @@
+/**
+ * @file    max31865.cpp
+ * @author  Andreas Reichle (HOREICH UG)
+ * 
+ */
+
 #include "max31865.hpp"
 
 MAX31865::MAX31865(
@@ -5,13 +11,18 @@ MAX31865::MAX31865(
     PinName clk,
     PinName miso,
     PinName mosi,
-    uint32_t frequency
-) :
-    _spi(PB_15, PB_14, PB_13), // enable on low
-    _cs(PC_4, 1)
+    uint32_t frequency,
+    RTD_MODE mode,
+    uint32_t rm,
+    uint32_t rn
+) : _rm(rm), _rn(rn)
+    _spi(mosi, miso, clk), // enable on low
+    _cs(cs, 1)
 {
     _spi.frequency(1000000);
     _spi.format(8, 1); // or _spi.format(8,3)
+
+    set_rtd_mode(mode);
 }
 
 MAX31865::~MAX31865()
@@ -58,8 +69,10 @@ MAX31865::RTD_MODE MAX31865::get_rtd_mode()
     static_cast<RTD_MODE>(read_value(_rtd_mode));
 }
 
-short MAX31865::read_temperature()
+float MAX31865::read_temperature()
 {
+    float Z1, Z2, Z3, Z4, Rt, temp;
+
     //set_bias(true);
 
     uint8_t msb = read_register(ADDR_TEMP_MSB);
@@ -67,12 +80,43 @@ short MAX31865::read_temperature()
 
     //set_bias(false);
 
-    uint16_t rtd = (lsb >> 1) | (msb << 7);
+    Rt = ((lsb >> 1) | (msb << 7));
 
-    rtd = rtd/0x7FFF * MBED_CONF_MAX31865_MATCHING_RESISTOR; // per bit
+    Rt /= 32768;
+    Rt *= _rm;
 
-    float t1 = 
+    printf("Rt = %f", Rt);
 
+    Z1 = -RTD_A;
+    Z2 = RTD_A * RTD_A - (4 * RTD_B);
+    Z3 = (4 * RTD_B) / _rn;
+    Z4 = 2 * RTD_B;
+
+    temp = Z2 + (Z3 * Rt);
+    temp = (sqrt(temp) + Z1) / Z4;
+
+    if (temp >= 0) // only valid for positive values of the solutions
+    {
+        return temp;
+    }
+        
+    Rt /= _rn;
+    Rt *= 100; // normalize to 100 ohm
+
+    float rpoly = Rt;
+
+    temp = -242.02;
+    temp += 2.2228 * rpoly;
+    rpoly *= Rt; // square
+    temp += 2.5859e-3 * rpoly;
+    rpoly *= Rt; // ^3
+    temp -= 4.8260e-6 * rpoly;
+    rpoly *= Rt; // ^4
+    temp -= 2.8183e-8 * rpoly;
+    rpoly *= Rt; // ^5
+    temp += 1.5243e-10 * rpoly;
+
+    return temp;
 }
 
 uint8_t MAX31865::read_register(char addr)

@@ -42,7 +42,7 @@ public:
 
     enum RTD_MODE
     {
-        RTD_MODE_2_WIRE                 = 0x00,
+        RTD_MODE_2_4_WIRE               = 0x00,
         RTD_MODE_3_WIRE                 = 0x01,
     };
 
@@ -59,7 +59,10 @@ public:
         PinName clk = MBED_CONF_MAX31865_CLK_PIN,
         PinName miso = MBED_CONF_MAX31865_MISO_PIN,
         PinName mosi = MBED_CONF_MAX31865_MOSI_PIN,
-        uint32_t frequency = MBED_CONF_MAX31865_FREQUENCY
+        uint32_t frequency = MBED_CONF_MAX31865_FREQUENCY,
+        RTD_MODE mode = MBED_CONF_MAX31865_RTD_MODE,
+        uint32_t rm = MBED_CONF_MAX31865_MATCHING_RESISTANCE,
+        uint32_t rn = MBED_CONF_MAX31865_NOMINAL_RESISTANCE
     );
     ~MAX31865();
 
@@ -75,7 +78,7 @@ public:
     void set_rtd_mode(RTD_MODE mode);
     RTD_MODE get_rtd_mode();
 
-    short read_temperature();
+    float read_temperature();
 
 
 private:
@@ -90,7 +93,9 @@ private:
 
     mbed::SPI _spi; 
     mbed::DigitalOut _cs;
-    
+    uint32_t _rm;                                               // <the matching resistance of the device>
+    uint32_t _rn;                                               // <the nominal resistance of the RTD>
+
     static constexpr uint8_t REG_CONFIG             = 0x00;
     static constexpr uint8_t REG_BIAS               = 0x08;
     static constexpr uint8_t REG_MODEAUTO           = 0x04;
