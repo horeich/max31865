@@ -18,7 +18,7 @@ For wiring refer to [RTD Wiring & Config](https://learn.adafruit.com/adafruit-ma
 
 ## System design (typical application)
 ### Hardware
-![Main](https://github.com/horeich/max31865/blob/master/assets/schematics.jpg)
+![schematics](https://github.com/horeich/max31865/blob/master/assets/schematics.png)
 - Provide a capacitor between RTDIN+ and RTDIN- as a filter in noisy environments
 - 
 ### Software
