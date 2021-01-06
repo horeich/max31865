@@ -26,6 +26,7 @@ MAX31865::MAX31865(
     _spi.frequency(1000000);
     _spi.format(8, 1); // or _spi.format(8,3)
 
+    clear_fault();
     set_rtd_mode(mode); // 2/3/4 wires
 }
 
@@ -99,7 +100,17 @@ void MAX31865::perform_one_shot_conversion()
     write_value(_one_shot, 1);
 }
 
+uint8_t MAX31865::read_fault()
+{
+    return read_register(REG_FAULT_STATUS);
+}
 
+void MAX31865::clear_fault()
+{
+    printf("MAX31865::%s\n", __func__);
+    set_conversion_mode(CONV_MODE_AUTO);
+    write_register(_fault_clear, 0x01);
+}
 
 void MAX31865::set_rtd_mode(RTD_MODE mode)
 {
@@ -182,13 +193,13 @@ float MAX31865::read_temperature()
     return temp;
 }
 
-uint8_t MAX31865::read_register(char addr)
+uint8_t MAX31865::read_register(char reg)
 {
-    addr &= 0x7F; // unset write bit
+    // reg &= 0x7F; // unset write bit
     _spi.lock();
 
     _cs.write(0);
-    int ret = _spi.write(addr);
+    int ret = _spi.write(reg);
     ret = _spi.write(0x00);
     _cs.write(1);
  
@@ -196,13 +207,13 @@ uint8_t MAX31865::read_register(char addr)
     return ret;
 }
 
-void MAX31865::write_register(char addr, char data)
+void MAX31865::write_register(char reg, char data)
 {
-    addr &= 0x80; // set write bit
+    reg &= 0x80; // set write bit
     _spi.lock();
 
     _cs.write(0);
-    int ret = _spi.write(addr); // note that spi_master_write() method can only transmit one char at a time
+    int ret = _spi.write(reg); // note that spi_master_write() method can only transmit one char at a time
     ret = _spi.write(data);
     _cs.write(1);
 
@@ -211,7 +222,7 @@ void MAX31865::write_register(char addr, char data)
 
 uint8_t MAX31865::read_value(const BitValueMask& mask)
 {
-    uint8_t value = read_register(mask.read);
+    uint8_t value = read_register(mask.reg);
     printf("#Read 0b " BYTE_PLACEHOLDER, BYTE_TO_BIN(value));
     printf("\n");
     uint8_t bitmask{0};
@@ -229,7 +240,7 @@ uint8_t MAX31865::read_value(const BitValueMask& mask)
 void MAX31865::write_value(const BitValueMask& mask, uint8_t value)
 {
     uint8_t reg_value{0x00};
-    reg_value = read_register(mask.read);
+    reg_value = read_register(mask.reg);
     uint8_t bitmask{0};
     for (uint8_t i = 0; i < mask.bits; ++i)
     {
@@ -239,7 +250,7 @@ void MAX31865::write_value(const BitValueMask& mask, uint8_t value)
     reg_value &= ~bitmask;
     reg_value |= value;
 
-    write_register(mask.write, reg_value);
+    write_register(mask.reg, reg_value);
 
     printf("#Wrote 0b " BYTE_PLACEHOLDER, BYTE_TO_BIN(reg_value));
     printf("\n");

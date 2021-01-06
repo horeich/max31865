@@ -30,9 +30,8 @@ private:
 
     struct BitValueMask
     {
-        BitValueMask(uint8_t rd, uint8_t wr, uint8_t b, uint8_t bs) : read(rd), write(wr), bits(b), bitshift(bs) {};   
-        uint8_t read;
-        uint8_t write;
+        BitValueMask(uint8_t r, uint8_t b, uint8_t bs) : reg(r), bits(b), bitshift(bs) {};   
+        uint8_t reg;
         uint8_t bits;
         uint8_t bitshift;
     };
@@ -56,6 +55,18 @@ public:
         FILTER_60_HZ                    = 0x00,
         FILTER_50_HZ                    = 0x01,
     };
+
+    enum FAULT
+    {
+        FAULT_OVER_UNDER_VOLTAGE        = 0x02,
+        FAULT_RTDIN_LOW                 = 0x03,
+        FAULT_REFIN_LOW                 = 0x04,
+        FAULT_REFIN_HIGH                = 0x05,
+        FAULT_RTD_LOW_THRESH            = 0x06,
+
+
+    };
+
 
 public:
 
@@ -111,12 +122,17 @@ public:
      * @return              void
      */
     void set_rtd_mode(RTD_MODE mode);
-    
+
     RTD_MODE get_rtd_mode();
 
     float read_temperature();
 
     uint8_t read_fault();
+
+    /**
+     * @brief               
+     */
+    void clear_fault();
 
 
 private:
@@ -147,28 +163,21 @@ private:
 
     std::unique_ptr<mbed::InterruptIn> _isr;                    // <ready interrupt pin>
 
-    static constexpr uint8_t REG_CONFIG             = 0x00;
-    static constexpr uint8_t REG_BIAS               = 0x08;
-    static constexpr uint8_t REG_MODEAUTO           = 0x04;
-    static constexpr uint8_t ADDR_TEMP_MSB          = 0x01;
-    static constexpr uint8_t ADDR_TEMP_LSB          = 0x02;
+    static constexpr uint8_t REG_CONFIG             {0x00};
+    static constexpr uint8_t REG_FAULT_STATUS       {0x07}; // <read-only>
 
     // CONFIGURATION REGISTER
-    const BitValueMask _bias            {0x00, 0x80, 1, 7};
-    const BitValueMask _conv_mode       {0x00, 0x80, 1, 6};
-    const BitValueMask _one_shot        {0x00, 0x80, 1, 5};
-    const BitValueMask _rtd_mode        {0x00, 0x80, 1, 4};
-    const BitValueMask _filter_sel      {0x00, 0x80, 1, 0};
+    const BitValueMask _bias            {REG_CONFIG, 1, 7};
+    const BitValueMask _conv_mode       {REG_CONFIG, 1, 6};
+    const BitValueMask _one_shot        {REG_CONFIG, 1, 5};
+    const BitValueMask _rtd_mode        {REG_CONFIG, 1, 4};
+    const BitValueMask _fault_clear     {REG_CONFIG, 3, 1}; // <bit 2/3 need to be zero when clearing fault>
+    const BitValueMask _filter_sel      {REG_CONFIG, 1, 0};
     
-
+    // FAULT STATUS REGISTER
+    
     // RESISTANCE REGISTER
     //const BitValueMask 
-
-    // 
-    // 
-    // const BitValueMask _fault_det       {REG_CONFIG, 2, 2};
-    // const BitValueMask _fault_status    {REG_CONFIG, 1, 1};
-    // const BitValueMask _filter_sel      {REG_CONFIG, 1, 0};
 
     static constexpr double RTD_A        = 3.9083e-3; // <factor a for Callendar-Van Dusen equation>
     static constexpr double RTD_B        = -5.775e-7; // <factor b for Callendar-Van Dusen equation>
