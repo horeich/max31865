@@ -5,7 +5,12 @@
  */
 
 #include "drivers/SPI.h"
+#include "drivers/InterruptIn.h"
+#include "drivers/LowPowerTicker.h"
+#include "platform/Callback.h"
+#include "rtos/EventFlags.h"
 #include "mbed.h"
+#include <memory>
 
 #define BYTE_PLACEHOLDER "%c%c%c%c%c%c%c%c"
 #define BYTE_TO_BIN(byte) \
@@ -64,24 +69,66 @@ public:
         uint32_t rm = MBED_CONF_MAX31865_MATCHING_RESISTANCE,
         uint32_t rn = MBED_CONF_MAX31865_NOMINAL_RESISTANCE
     );
-    ~MAX31865();
 
-    void set_bias(bool enable);
-    bool get_bias();
+    ~MAX31865() = default;
 
-    void set_conversion_mode(CONV_MODE mode);
+    void set_rdy_interrupt(mbed::Callback<void()> cb, PinName rdy = MBED_CONF_MAX31865_RDY_PIN);
+
+    /**
+     * @brief               Enables or disables BIAS pin output voltage V_bias.
+     *                      Note: Disabling the BIAS pin saves energy/ reduces self-heating
+     * @param enable        True to enable, false to disable
+     * @return              void
+     */
+    void enable_bias(bool enable);
+
+    /**
+     * 
+     */
+    bool is_bias_enabled();
+
+
+
+    void set_oneshot_conversion_mode();
+
+    /**
+     * @brief               
+     * @param filter        50Hz/60Hz noise rejection filter; change BEFORE using continuous conversion mode
+     */
+    void set_continuous_conversion_mode(FILTER filter);
+
+
     CONV_MODE get_conversion_mode();
+
+    void perform_one_shot_conversion();
 
     void set_filter_frequency(FILTER filter);
     FILTER get_filter_frequency();
 
+    /**
+     * @brief               Sets the device into 2/4 or 3 wire mode
+     * @param mode          2/4-wire mode or 3-wire mode
+     * @return              void
+     */
     void set_rtd_mode(RTD_MODE mode);
+    
     RTD_MODE get_rtd_mode();
 
     float read_temperature();
 
+    uint8_t read_fault();
+
 
 private:
+
+    /**
+     * @brief               Sets conversion mode
+     *                      CONV_MODE_AUTO: continuous conversion at 50/60Hz
+     *                      CONV_MODE_OFF:
+     */
+    void set_conversion_mode(CONV_MODE mode);
+
+    void wait_async();
 
     uint8_t read_register(char reg);
     void write_register(char reg, char data);
@@ -95,6 +142,10 @@ private:
     mbed::DigitalOut _cs;
     uint32_t _rm;                                               // <the matching resistance of the device>
     uint32_t _rn;                                               // <the nominal resistance of the RTD>
+    mbed::LowPowerTimeout _async_wait;                          // <timer to wait until filter caps are charged>
+    rtos::EventFlags _timeout;                                  // <
+
+    std::unique_ptr<mbed::InterruptIn> _isr;                    // <ready interrupt pin>
 
     static constexpr uint8_t REG_CONFIG             = 0x00;
     static constexpr uint8_t REG_BIAS               = 0x08;

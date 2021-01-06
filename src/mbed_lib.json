@@ -17,6 +17,10 @@
             "help": "the master-in-slave-out pin of the SPI communication interface",
             "value": "PB_14"
         },
+        "rdy_pin": {
+            "help": "the ready pin goes low when a new conversion result is available",
+            "value": "PC_9"
+        },
         "frequency":
         {
             "help": "the desired I2C frequency",
