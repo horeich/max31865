@@ -47,7 +47,7 @@ void MAX31865_Oneshot::Run()
         float value = therm.read_temperature();
         printf("Temperature [°C]: %f\n", value);
 
-        // Disable bias to save power
+        // Disable bias to save power/ reduce self-heating
         therm.enable_bias(false);
 
         // Read fault value

@@ -47,13 +47,13 @@ public:
         CONV_MODE_OFF                       = 0x00,
         CONV_MODE_AUTO                      = 0x01,
     };  
-    
+
     enum RTD_MODE   
     {   
         RTD_MODE_2_4_WIRE                   = 0x00,
         RTD_MODE_3_WIRE                     = 0x01,
     };  
-    
+
     enum FILTER 
     {   
         FILTER_60_HZ                        = 0x00, // <conversion time around 62.5ms>
@@ -112,8 +112,8 @@ public:
     void hard_reset();
 
     /**
-     * @brief               Enables or disables BIAS pin output voltage V_bias.
-     *                      Note: Disabling the BIAS pin saves energy/ reduces self-heating
+     * @brief               Enables or disables bias pin output voltage V_bias.
+     *                      Note: Disabling the bias pin saves energy/ reduces self-heating
      * @param enable        True to enable, false to disable
      * @return              void
      */
