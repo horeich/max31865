@@ -2,8 +2,9 @@
 Hardware driver for mbedOS
 ## Required hardware
 For prototyping the following hardware is recommended:
-- [NUCLEO_L476RG](https://os.mbed.com/platforms/ST-Nucleo-L476RG/) - a bare-metal STM32 development board
-- [MAX31865 Breakout-Board](https://www.google.com/search?client=firefox-b-d&q=MAX31865+breakout+board) - find your suitable board online
+- [e.g. NUCLEO_L476RG](https://os.mbed.com/platforms/ST-Nucleo-L476RG/) - a bare-metal STM32 development board
+- [e.g. Adafruit MAX31865](https://learn.adafruit.com/adafruit-max31865-rtd-pt100-amplifier) - MAX31865 breakout board (there are cheaper versions available)
+- [e.g. AT102 PT100](https://autosen.com/en/Process-Sensors/Resistance-temperature-sensor-PT1000-AT102) - 4-wire temperature sensor
 
 The library will work with any board supported by mbedOS. Enable RTOS for the best experience
 
@@ -20,14 +21,19 @@ For wiring refer to [RTD Wiring & Config](https://learn.adafruit.com/adafruit-ma
 ### Hardware
 ![schematics](https://github.com/horeich/max31865/blob/master/assets/schematics.png)
 - Provide a capacitor between RTDIN+ and RTDIN- as a filter in noisy environments
-- 
+- Do not solder any jumpers on the breakout board for the 4-wire setup
+- It is recommended to use an external pullup resistor for the *DRDY*-pin (indicating a finished conversion)
+
 ### Software
+- The device has only 8 bit registers
 #### General
 
 #### Faults
-- The device supports *automatic fault detection* and *manual fault detection*
+- Faults are only supported in one-shot conversion mode (*NORMALLY OFF* bit 6 in config register must be set)
+- The device supports *automatic fault detection* and *manual fault detection*; the bits 2 and 3 must be set in the configuration register
+- Faults are encoded in and read from the *Fault Status Register 0x07* (each bit of the register represents one fault)
 ## Characteristics
-- the device does not have an on-board EEPROM; the configuration has to be set after every power cycle
+- the device does not have an on-board EEPROM; the configuration has to be set after every power cycle; use power-cylce for hard-resetting the device
 
 
 

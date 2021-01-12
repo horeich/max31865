@@ -3,10 +3,14 @@
  * @author  Andreas Reichle (HOREICH UG) <andreas.reichle@horeich.de>
  * TODO:
  * - ifdef mbed_rtos_present
- * - test bias on/off in continuous mode
+ * - test getter functions
+ * - test clear_fault with setting mode normal off before setting the 3 bits
+ * FIXME:
  */
 
 #include "max31865.hpp"
+
+using namespace std::chrono_literals;
 
 MAX31865::MAX31865(
     PinName cs,
@@ -23,7 +27,7 @@ MAX31865::MAX31865(
     _rm(rm), 
     _rn(rn)
 {
-    _spi.frequency(1000000);
+    _spi.frequency(frequency);
     _spi.format(8, 1); // or _spi.format(8,3)
 
     clear_fault();
@@ -43,11 +47,24 @@ void MAX31865::set_rdy_interrupt(mbed::Callback<void()> cb, PinName rdy)
     {
         _isr.reset();
     }
+
 }
+
+void MAX31865::soft_reset()
+{
+    printf("MAX31865::%s\n", __func__);
+    clear_fault();
+    set_conversion_mode(CONV_MODE_OFF);
+    enable_bias(false);
+    set_rtd_mode(RTD_MODE_2_4_WIRE);
+    // set_fault_mode
+    set_filter_frequency(FILTER_60_HZ);
+}
+
 
 void MAX31865::wait_async()
 {
-    _timeout.set(1 << 0);
+    //_timeout.set(1 << 0);
 }
 
 void MAX31865::enable_bias(bool enable)
@@ -56,60 +73,96 @@ void MAX31865::enable_bias(bool enable)
     write_value(_bias, (uint8_t)enable);
     if (enable)
     {
-        _timeout.clear(1 << 0);
-        _async_wait.attach(mbed::callback(this, &MAX31865::wait_async), 74000us);
+        rtos::ThisThread::sleep_for(74ms);
+        // _timeout.clear(1 << 0);
+        // _async_wait.attach(mbed::callback(this, &MAX31865::wait_async), 74000us);
     }
 }
 
 bool MAX31865::is_bias_enabled()
 {
+    printf("MAX31865::%s\n", __func__);
     return static_cast<bool>(read_value(_bias));
 }
 
 void MAX31865::set_continuous_conversion_mode(FILTER filter)
 {
     printf("MAX31865::%s\n", __func__);
-    set_conversion_mode(CONV_MODE_AUTO);
+    set_conversion_mode(CONV_MODE_OFF); // switch mode to change filter
     set_filter_frequency(filter);
+    enable_bias(true); // must be on but not automatically turned on
+    set_conversion_mode(CONV_MODE_AUTO);  
 }
 
-void MAX31865::set_oneshot_conversion_mode()
+void MAX31865::set_oneshot_conversion_mode(FAULT_MODE mode)
 {
     printf("MAX31865::%s\n", __func__);
     set_conversion_mode(CONV_MODE_OFF);
-    enable_bias(false);
+    enable_bias(true); // see p.14 data sheet
+    set_fault_mode(mode);
+    perform_oneshot_conversion();
 }
 
 void MAX31865::set_conversion_mode(CONV_MODE mode)
 {
     printf("MAX31865::%s\n", __func__);
-    if (mode == CONV_MODE_OFF)
-    {
-        enable_bias(false); // for power saving
-    }
     write_value(_conv_mode, mode);
 }
 
 MAX31865::CONV_MODE MAX31865::get_conversion_mode()
 {
+    printf("MAX31865::%s\n", __func__);
     return static_cast<CONV_MODE>(read_value(_conv_mode));
 }
 
-void MAX31865::perform_one_shot_conversion()
+void MAX31865::perform_oneshot_conversion()
 {
+    printf("MAX31865::%s\n", __func__);
     write_value(_one_shot, 1);
+}
+
+void MAX31865::set_fault_mode(FAULT_MODE mode)
+{
+    printf("MAX31865::%s\n", __func__);
+    write_value(_fault_mode, mode);
 }
 
 uint8_t MAX31865::read_fault()
 {
-    return read_register(REG_FAULT_STATUS);
+    printf("MAX31865::%s\n", __func__);
+    uint8_t fault = read_register(REG_FAULT_STATUS);
+    switch (fault)
+    {
+    case FAULT_OVER_UNDER_VOLTAGE:
+        printf("Over/undervoltage fault\n");
+        break;
+    case FAULT_RTDIN_LOW:
+        printf("RTDIN- < 0.85 x V_bias (FORCE- open)");
+        break;
+    case FAULT_REFIN_LOW:
+        printf("REFIN- < 0.85 x V_bias (FORCE- open)");
+        break;
+    case FAULT_REFIN_HIGH:
+        printf("REFIN- > 0.85 x V_bias");
+        break;
+    case FAULT_RTD_LOW_THRESH:
+        printf("RTD low threshold");
+        break;
+    case FAULT_RTD_HIGH_THRESH:
+        printf("RTD high threshold");
+        break;
+    default:
+        printf("No fault\n");
+        break;
+    }
+    return fault;
 }
 
 void MAX31865::clear_fault()
 {
     printf("MAX31865::%s\n", __func__);
-    set_conversion_mode(CONV_MODE_AUTO);
-    write_register(_fault_clear, 0x01);
+    set_conversion_mode(CONV_MODE_OFF);
+    write_value(_fault_clear, 0x01);
 }
 
 void MAX31865::set_rtd_mode(RTD_MODE mode)
@@ -126,40 +179,36 @@ MAX31865::RTD_MODE MAX31865::get_rtd_mode()
 void MAX31865::set_filter_frequency(FILTER filter)
 {
     printf("MAX31865::%s\n", __func__);
-    write_value(_filter_sel, filter);
+    if (get_conversion_mode() == CONV_MODE_AUTO)
+    {
+        printf("Cannot change frequency in continuous mode\n");
+    }
+    else
+    {
+        write_value(_filter_sel, filter);
+    }
 }   
 
-MAX31865::FILTER MAX31865::get_filter_frequency()
+uint8_t MAX31865::get_filter_frequency()
 {
-    static_cast<FILTER>(read_value(_filter_sel));
+    read_value(_filter_sel);
 }
 
 float MAX31865::read_temperature()
 {
+    printf("MAX31865::%s\n", __func__);
     float Z1, Z2, Z3, Z4, Rt, temp;
     bool _bias_state = true;
 
-    if (!is_bias_enabled())
-    {
-        enable_bias(true);
-        _bias_state = false;
-    }
-    _timeout.wait_all(1 << 0, osWaitForever, false); 
-
-    uint8_t msb = read_register(ADDR_TEMP_MSB); // low on CS pin initiates a conversion
-    uint8_t lsb = read_register(ADDR_TEMP_LSB);
-
-    if (!_bias_state) // return to previous bias state
-    {
-        enable_bias(false);
-    }
+    uint8_t msb = read_register(REG_TEMP_HIGH); // low on CS pin initiates a conversion
+    uint8_t lsb = read_register(REG_TEMP_LOW);
 
     Rt = ((lsb >> 1) | (msb << 7));
 
     Rt /= 32768;
     Rt *= _rm;
 
-    printf("Rt = %f", Rt);
+    printf("Rt = %f\n", Rt);
 
     Z1 = -RTD_A;
     Z2 = RTD_A * RTD_A - (4 * RTD_B);
@@ -195,36 +244,49 @@ float MAX31865::read_temperature()
 
 uint8_t MAX31865::read_register(char reg)
 {
-    // reg &= 0x7F; // unset write bit
     _spi.lock();
-
-    _cs.write(0);
-    int ret = _spi.write(reg);
-    ret = _spi.write(0x00);
+    _cs.write(0);  
+    int rc = _spi.write(reg);
+    int value = _spi.write(0x00); 
     _cs.write(1);
- 
     _spi.unlock();
-    return ret;
+
+    // Note: The MCU can detect read errors when the MAX31865 does not respond; however,
+    // write errors cannot be detected by the MCU
+    if (rc != HAL_OK && rc != 255)
+    {
+        printf("READ ERROR READ ERROR READ ERROR READ ERROR %d\n", rc);
+        MBED_WARNING1(MBED_MAKE_ERROR(MBED_MODULE_DRIVER_SPI, MBED_ERROR_READ_FAILED), "MAX31865", rc);
+    }
+
+    printf("#Read 0b " BYTE_PLACEHOLDER, BYTE_TO_BIN(value));
+    printf("\n");
+
+    return value;
 }
 
 void MAX31865::write_register(char reg, char data)
 {
-    reg &= 0x80; // set write bit
+    reg |= 0x80; // set write bit
+
     _spi.lock();
-
     _cs.write(0);
-    int ret = _spi.write(reg); // note that spi_master_write() method can only transmit one char at a time
-    ret = _spi.write(data);
-    _cs.write(1);
+    int rc = _spi.write(reg); // note that spi_master_write() method can only transmit one char at a time
+    //printf("WRITE RC = %d\n", rc);
+    rc = _spi.write(data); // expected return value rc = 255
+    //printf("WRITE RC = %d\n", rc);
 
+    _cs.write(1);
     _spi.unlock();
+
+    printf("#Wrote 0b " BYTE_PLACEHOLDER, BYTE_TO_BIN(data));
+    printf("\n");
 }
 
 uint8_t MAX31865::read_value(const BitValueMask& mask)
 {
     uint8_t value = read_register(mask.reg);
-    printf("#Read 0b " BYTE_PLACEHOLDER, BYTE_TO_BIN(value));
-    printf("\n");
+   
     uint8_t bitmask{0};
     for (uint8_t i = 0; i < mask.bits; ++i)
     {
@@ -251,7 +313,4 @@ void MAX31865::write_value(const BitValueMask& mask, uint8_t value)
     reg_value |= value;
 
     write_register(mask.reg, reg_value);
-
-    printf("#Wrote 0b " BYTE_PLACEHOLDER, BYTE_TO_BIN(reg_value));
-    printf("\n");
 }
