@@ -27,6 +27,9 @@ void MAX31865_Continuous::Run()
     // Resets the device to default values
     therm.soft_reset();
 
+    // Set the RTD mode
+    therm.set_rtd_mode(MAX31865::RTD_MODE_2_4_WIRE);
+
     // Set ready pin interrupt
     therm.set_rdy_interrupt(mbed::callback(Ready));
     
@@ -41,12 +44,18 @@ void MAX31865_Continuous::Run()
     {
         // Wait for ready interrupt to shoot 
         // Make sure to set a timeout in cases the MCU does not shoot an interrupt
-        Rdy_flag.wait_all_for(1 << 0, cycle_time + 500ms);
-
-        // Read out the temperature value
-        float value = therm.read_temperature();
-        printf("Temperature [°C]: %f\n", value);
-
+        int rc = Rdy_flag.wait_all_for(1 << 0, cycle_time + 500ms);
+        if (rc > 0 && rc & (1 << 0))
+        {
+            // Read out the temperature value
+            float value = therm.read_temperature();
+            printf("Temperature [°C]: %f\n", value);
+        }
+        else
+        {
+            printf("Error reading temperature");
+        }
+        
         // Check last fault
         therm.read_fault();
 

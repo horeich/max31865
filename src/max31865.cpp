@@ -18,20 +18,35 @@ MAX31865::MAX31865(
     PinName miso,
     PinName mosi,
     uint32_t frequency,
-    RTD_MODE mode,
     uint32_t rm,
     uint32_t rn
 ) : 
+
     _spi(mosi, miso, clk),
-    _cs(cs, 1),
+    _cs(cs, PIN_OUTPUT, PinMode::PullNone, 1),
     _rm(rm), 
     _rn(rn)
 {
     _spi.frequency(frequency);
-    _spi.format(8, 1); // or _spi.format(8,3)
+    _spi.format(8, 1); // or _spi.format(8, 3)
+}
 
-    clear_fault();
-    set_rtd_mode(mode); // 2/3/4 wires
+void MAX31865::disable()
+{
+    // _analog.reset();
+    // DigitalInOut x(_analog_pin, PIN_INPUT, PinMode::PullDown, 0);
+    // _enable.input();
+    // _enable.write(0);
+}
+
+void MAX31865::enable()
+{
+    // if (!_analog)
+    // {
+    //     _analog = make_unique<AnalogIn>(_analog_pin);
+    //     _enable.output();
+    //     _enable.write(1);
+    // }
 }
 
 void MAX31865::set_rdy_interrupt(mbed::Callback<void()> cb, PinName rdy)
@@ -40,7 +55,7 @@ void MAX31865::set_rdy_interrupt(mbed::Callback<void()> cb, PinName rdy)
     if (cb)
     {
         // Note: it is recommended to use an external pull-up to default to high
-        _isr = std::make_unique<mbed::InterruptIn>(rdy, PinMode::PullUp);
+        _isr = std::make_unique<mbed::InterruptIn>(rdy, PinMode::PullNone);
         _isr->fall(cb);
     }
     else
@@ -56,11 +71,9 @@ void MAX31865::soft_reset()
     clear_fault();
     set_conversion_mode(CONV_MODE_OFF);
     enable_bias(false);
-    set_rtd_mode(RTD_MODE_2_4_WIRE);
-    // set_fault_mode
+    // TODO: set_fault_mode
     set_filter_frequency(FILTER_60_HZ);
 }
-
 
 void MAX31865::wait_async()
 {
@@ -173,7 +186,7 @@ void MAX31865::set_rtd_mode(RTD_MODE mode)
 
 MAX31865::RTD_MODE MAX31865::get_rtd_mode()
 {
-    static_cast<RTD_MODE>(read_value(_rtd_mode));
+    return static_cast<RTD_MODE>(read_value(_rtd_mode));
 }
 
 void MAX31865::set_filter_frequency(FILTER filter)
@@ -191,14 +204,13 @@ void MAX31865::set_filter_frequency(FILTER filter)
 
 uint8_t MAX31865::get_filter_frequency()
 {
-    read_value(_filter_sel);
+    return read_value(_filter_sel);
 }
 
 float MAX31865::read_temperature()
 {
     printf("MAX31865::%s\n", __func__);
     float Z1, Z2, Z3, Z4, Rt, temp;
-    bool _bias_state = true;
 
     uint8_t msb = read_register(REG_TEMP_HIGH); // low on CS pin initiates a conversion
     uint8_t lsb = read_register(REG_TEMP_LOW);
@@ -245,14 +257,17 @@ float MAX31865::read_temperature()
 uint8_t MAX31865::read_register(char reg)
 {
     _spi.lock();
+    //_cs.output();
     _cs.write(0);  
     int rc = _spi.write(reg);
-    int value = _spi.write(0x00); 
+    int value = _spi.write(0x00);
+    //_cs.input(); 
     _cs.write(1);
     _spi.unlock();
 
     // Note: The MCU can detect read errors when the MAX31865 does not respond; however,
     // write errors cannot be detected by the MCU
+    // Only 0/only 1 may mean that lines continuously on low/high
     if (rc != HAL_OK && rc != 255)
     {
         printf("READ ERROR READ ERROR READ ERROR READ ERROR %d\n", rc);
@@ -270,12 +285,13 @@ void MAX31865::write_register(char reg, char data)
     reg |= 0x80; // set write bit
 
     _spi.lock();
+    //_cs.output();
     _cs.write(0);
-    int rc = _spi.write(reg); // note that spi_master_write() method can only transmit one char at a time
+    _spi.write(reg); // note that spi_master_write() method can only transmit one char at a time
     //printf("WRITE RC = %d\n", rc);
-    rc = _spi.write(data); // expected return value rc = 255
+    _spi.write(data); // expected return value rc = 255
     //printf("WRITE RC = %d\n", rc);
-
+    //_cs.input();
     _cs.write(1);
     _spi.unlock();
 

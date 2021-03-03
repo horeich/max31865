@@ -40,12 +40,18 @@ void MAX31865_Oneshot::Run()
         therm.set_oneshot_conversion_mode(MAX31865::FAULT_MODE_OFF);
         
         // Wait for ready interrupt to shoot
-        Rdy_flag.wait_all_for(1 << 0, cycle_time + 500ms);
-
-        // Read out temperature
-        // Make sure to set a timeout in cases the MCU does not shoot an interrupt
-        float value = therm.read_temperature();
-        printf("Temperature [°C]: %f\n", value);
+        int rc = Rdy_flag.wait_all_for(1 << 0, cycle_time + 500ms);
+        if (rc > 0 && rc & (1 << 0))
+        {
+            // Read out temperature
+            // Make sure to set a timeout in cases the MCU does not shoot an interrupt
+            float value = therm.read_temperature();
+            printf("Temperature [°C]: %f\n", value);
+        }   
+        else
+        {
+            printf("Error reading temperature");
+        }
 
         // Disable bias to save power/ reduce self-heating
         therm.enable_bias(false);

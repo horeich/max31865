@@ -18,11 +18,16 @@ For wiring refer to [RTD Wiring & Config](https://learn.adafruit.com/adafruit-ma
 - [x] Non-blocking timeouts when RTOS is enabled
 
 ## System design (typical application)
+
+### Interfacing with 1.8V MCU
+- Maximum difference between MCU and MAX DVDD should be 1.5V. When using
 ### Hardware
 ![schematics](https://github.com/horeich/max31865/blob/master/assets/schematics.png)
 - Provide a capacitor between RTDIN+ and RTDIN- as a filter in noisy environments
 - Do not solder any jumpers on the breakout board for the 4-wire setup
 - It is recommended to use an external pullup resistor for the *DRDY*-pin (indicating a finished conversion)
+- Do not use any pull-ups on SDI/SDO or SCLK line, they do not have any influcence on the data communication, SPI is internally switched with push-pull logic
+- A finished conversion is indicated by a falling edge
 
 ### Software
 - The device has only 8 bit registers

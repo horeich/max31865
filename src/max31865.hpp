@@ -7,6 +7,7 @@
 #define MAX31865_HPP
 
 #include "drivers/SPI.h"
+#include "drivers/DigitalInOut.h"
 #include "drivers/InterruptIn.h"
 #include "drivers/LowPowerTimeout.h"
 #include "platform/Callback.h"
@@ -86,12 +87,15 @@ public:
         PinName miso = MBED_CONF_MAX31865_MISO_PIN,
         PinName mosi = MBED_CONF_MAX31865_MOSI_PIN,
         uint32_t frequency = MBED_CONF_MAX31865_FREQUENCY,
-        RTD_MODE mode = MBED_CONF_MAX31865_RTD_MODE,
         uint32_t rm = MBED_CONF_MAX31865_MATCHING_RESISTANCE,
         uint32_t rn = 100
     );
 
     ~MAX31865() = default;
+
+    void disable();
+
+    void enable();
 
     /**
      * @brief           Sets callback function called when conversion is ready
@@ -102,7 +106,8 @@ public:
     void set_rdy_interrupt(mbed::Callback<void()> cb, PinName rdy = MBED_CONF_MAX31865_RDY_PIN);
 
     /**
-     * @brief           Resets the device registers to power-on-reset (POR) state 
+     * @brief           Resets the device registers to power-on-reset (POR) state
+     * @return          void
      */
     void soft_reset();
     
@@ -153,6 +158,9 @@ public:
 
     RTD_MODE get_rtd_mode();
 
+    /**
+     * @brief               Reads value from temperature register
+     */
     float read_temperature();
 
     uint8_t read_fault();
@@ -197,7 +205,7 @@ private:
 private:
 
     mbed::SPI _spi; 
-    mbed::DigitalOut _cs;
+    mbed::DigitalInOut _cs;
     uint32_t _rm;                                               // <the matching resistance of the device>
     uint32_t _rn;                                               // <the nominal resistance of the RTD>
     mbed::LowPowerTimeout _async_wait;                          // <timer to wait until filter caps are charged>
