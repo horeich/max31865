@@ -1,6 +1,12 @@
 /**
- * @file    max31865.hpp
- * @author  Andreas Reichle (HOREICH UG) <andreas.reichle@horeich.de>
+ * @file max31865.hpp
+ * @author Andreas Reichle (HOREICH UG) <andreas.reichle@horeich.de>
+ * @brief 
+ * @version 0.9
+ * @date 2021-03-24
+ * 
+ * @copyright Copyright (c) 2021
+ * 
  */
 
 #ifndef MAX31865_HPP
@@ -18,6 +24,9 @@
 #include <memory>
 #include <chrono>
 
+#define MBED_CONF_MAX31865_DEBUG    0
+#if MBED_CONF_MAX31865_DEBUG == 1
+
 #define BYTE_PLACEHOLDER "%c%c%c%c%c%c%c%c"
 #define BYTE_TO_BIN(byte) \
   (byte & 0x80 ? '1' : '0'), \
@@ -28,6 +37,11 @@
   (byte & 0x04 ? '1' : '0'), \
   (byte & 0x02 ? '1' : '0'), \
   (byte & 0x01 ? '1' : '0') 
+
+#define debug_print(...)      printf(__VA_ARGS__)
+#else
+#define debug_print(...)   
+#endif
 
 class MAX31865
 {
