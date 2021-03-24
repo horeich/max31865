@@ -46,7 +46,6 @@
 class MAX31865
 {
 private:
-
     struct BitValueMask
     {
         BitValueMask(uint8_t r, uint8_t b, uint8_t bs) : reg(r), bits(b), bitshift(bs) {};   
@@ -56,7 +55,6 @@ private:
     };
 
 public:
-
     enum CONV_MODE
     {
         CONV_MODE_OFF                       = 0x00,
@@ -94,19 +92,22 @@ public:
     };
 
 public:
-
     MAX31865(
         PinName cs = MBED_CONF_MAX31865_CS_PIN,
-        PinName clk = MBED_CONF_MAX31865_CLK_PIN,
+        PinName sclk = MBED_CONF_MAX31865_CLK_PIN,
         PinName miso = MBED_CONF_MAX31865_MISO_PIN,
         PinName mosi = MBED_CONF_MAX31865_MOSI_PIN,
         uint32_t frequency = MBED_CONF_MAX31865_FREQUENCY,
         uint32_t rm = MBED_CONF_MAX31865_MATCHING_RESISTANCE,
-        uint32_t rn = 100
+        uint32_t rn = MBED_CONF_MAX31865_NOMINAL_RESISTANCE
     );
 
     ~MAX31865() = default;
 
+    /**
+     * @brief           Resets all pins to low power state
+     * 
+     */
     void disable();
 
     void enable();
@@ -117,7 +118,10 @@ public:
      * @param rdy       The ready pin @MCU
      * @return          void
      */
-    void set_rdy_interrupt(mbed::Callback<void()> cb, PinName rdy = MBED_CONF_MAX31865_RDY_PIN);
+    void set_rdy_interrupt(
+        mbed::Callback<void()> callback, 
+        PinName rdy = MBED_CONF_MAX31865_RDY_PIN, 
+        PinMode mode = PinMode::PullNone);
 
     /**
      * @brief           Resets the device registers to power-on-reset (POR) state
@@ -133,10 +137,10 @@ public:
     /**
      * @brief               Enables or disables bias pin output voltage V_bias.
      *                      Note: Disabling the bias pin saves energy/ reduces self-heating
-     * @param enable        True to enable, false to disable
+     * @param enable_bias   True to enable, false to disable
      * @return              void
      */
-    void enable_bias(bool enable);
+    void enable_bias(bool enable_bias);
 
     /**
      * 
@@ -184,7 +188,6 @@ public:
      */
     void clear_fault();
 
-
 private:
 
     /**
@@ -201,8 +204,6 @@ private:
      */
     void set_conversion_mode(CONV_MODE mode);
 
-    void wait_async();
-
     /**
      *   Possible negative return values:
      *   HAL_OK       = 0x00U
@@ -218,14 +219,24 @@ private:
 
 private:
 
-    mbed::SPI _spi; 
-    mbed::DigitalInOut _cs;
+    PinName _mosi_pin;
+    PinName _miso_pin;
+    PinName _sclk_pin;
+    PinName _cs_pin;
+    std::unique_ptr<mbed::SPI> _spi; 
+    std::unique_ptr<mbed::DigitalInOut> _cs;
+    std::unique_ptr<mbed::DigitalInOut> _miso;
+    std::unique_ptr<mbed::DigitalInOut> _mosi;
+    std::unique_ptr<mbed::DigitalInOut> _sclk;
+    std::unique_ptr<mbed::InterruptIn> _isr;                    // <ready interrupt pin>
+    std::unique_ptr<mbed::DigitalInOut> _isr_idle;
     uint32_t _rm;                                               // <the matching resistance of the device>
     uint32_t _rn;                                               // <the nominal resistance of the RTD>
-    mbed::LowPowerTimeout _async_wait;                          // <timer to wait until filter caps are charged>
-    rtos::EventFlags _timeout;                                  // <
+    uint32_t _frequency;
+    // mbed::LowPowerTimeout _async_wait;                          // <timer to wait until filter caps are charged>
+    // rtos::EventFlags _timeout;                                  // <
 
-    std::unique_ptr<mbed::InterruptIn> _isr;                    // <ready interrupt pin>
+   
 
     static constexpr uint8_t REG_CONFIG             {0x00};
     static constexpr uint8_t REG_TEMP_HIGH          {0x01}; // <read-only>
