@@ -10,6 +10,24 @@
 
 #include "max31865.hpp"
 
+#if MBED_CONF_MAX31865_DEBUG == 1
+
+#define BYTE_PLACEHOLDER "%c%c%c%c%c%c%c%c"
+#define BYTE_TO_BIN(byte) \
+  (byte & 0x80 ? '1' : '0'), \
+  (byte & 0x40 ? '1' : '0'), \
+  (byte & 0x20 ? '1' : '0'), \
+  (byte & 0x10 ? '1' : '0'), \
+  (byte & 0x08 ? '1' : '0'), \
+  (byte & 0x04 ? '1' : '0'), \
+  (byte & 0x02 ? '1' : '0'), \
+  (byte & 0x01 ? '1' : '0') 
+
+#define debug_print(...)      printf(__VA_ARGS__)
+#else
+#define debug_print(...)   
+#endif
+
 using namespace std::chrono_literals;
 
 MAX31865::MAX31865(
@@ -44,10 +62,10 @@ void MAX31865::disable()
     if (_spi)
     {
         _spi.reset();
-        _sclk = std::make_unique<mbed::DigitalInOut>(_sclk_pin, PIN_INPUT, PinMode::PullDown);
-        _mosi = std::make_unique<mbed::DigitalInOut>(_mosi_pin, PIN_INPUT, PinMode::PullDown);
-        _miso = std::make_unique<mbed::DigitalInOut>(_miso_pin, PIN_INPUT, PinMode::PullDown);
-        _cs = std::make_unique<mbed::DigitalInOut>(_cs_pin, PIN_INPUT, PinMode::PullDown); 
+        _sclk = std::make_unique<mbed::DigitalInOut>(_sclk_pin, PIN_INPUT, PinMode::PullDown, 0);
+        _mosi = std::make_unique<mbed::DigitalInOut>(_mosi_pin, PIN_INPUT, PinMode::PullDown, 0);
+        _miso = std::make_unique<mbed::DigitalInOut>(_miso_pin, PIN_INPUT, PinMode::PullDown, 0);
+        _cs = std::make_unique<mbed::DigitalInOut>(_cs_pin, PIN_INPUT, PinMode::PullDown, 0); 
     }
 }
 
@@ -61,7 +79,7 @@ void MAX31865::enable()
         _spi = std::make_unique<mbed::SPI>(_mosi_pin, _miso_pin, _sclk_pin);
         _spi->frequency(_frequency);
         _spi->format(8, 1); // or _spi.format(8, 3)
-        _cs = std::make_unique<mbed::DigitalInOut>(_cs_pin, PIN_OUTPUT, PinMode::PullNone);
+        _cs = std::make_unique<mbed::DigitalInOut>(_cs_pin, PIN_INPUT, PinMode::PullNone, 0);
     }
 }
 
@@ -78,7 +96,7 @@ void MAX31865::set_rdy_interrupt(mbed::Callback<void()> callback, PinName rdy, P
     else
     {
         _isr.reset();
-        _isr_idle = std::make_unique<mbed::DigitalInOut>(rdy, PIN_INPUT, PinMode::PullDown);
+        _isr_idle = std::make_unique<mbed::DigitalInOut>(rdy, PIN_INPUT, PinMode::PullDown, 0);
     }
 }
 
@@ -307,10 +325,10 @@ float MAX31865::read_temperature()
 uint8_t MAX31865::read_register(char reg)
 {
     _spi->lock();
-    _cs->write(0);  
+    _cs->output();  
     int rc = _spi->write(reg);
     int value = _spi->write(0x00);
-    _cs->write(1);
+    _cs->input();
     _spi->unlock();
 
     // Note: The MCU can detect read errors when the MAX31865 does not respond; however,
@@ -333,12 +351,12 @@ void MAX31865::write_register(char reg, char data)
     reg |= 0x80; // set write bit
 
     _spi->lock();
-    _cs->write(0);
+    _cs->output();
     _spi->write(reg); // note that spi_master_write() method can only transmit one char at a time
     //debug_print("WRITE RC = %d\n", rc);
     _spi->write(data); // expected return value rc = 255
     //debug_print("WRITE RC = %d\n", rc);
-    _cs->write(1);
+    _cs->input();
     _spi->unlock();
 
     debug_print("#Wrote 0b " BYTE_PLACEHOLDER, BYTE_TO_BIN(data));
